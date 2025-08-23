@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Excel AI Pro</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        max-width: 840px;
+        margin: 40px auto;
+      }
+      header {
+        margin-bottom: 20px;
+      }
+      form {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+        border: 1px solid #ddd;
+        border-radius: 12px;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      select,
+      input[type="file"],
+      button {
+        padding: 10px;
+        font-size: 15px;
+      }
+      button {
+        cursor: pointer;
+      }
+      pre {
+        white-space: pre-wrap;
+        background: #fafafa;
+        border: 1px solid #eee;
+        padding: 12px;
+        border-radius: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h2>Excel AI Pro</h2>
+      <p>
+        Upload an Excel/CSV file and choose a task. Results will appear below or
+        download automatically if a cleaned file is produced.
+      </p>
+    </header>
+    <form id="f" enctype="multipart/form-data">
+      <div class="row">
+        <input
+          type="file"
+          name="file"
+          accept=".xlsx,.xls,.csv"
+          required
+        />
+        <select name="task">
+          <option value="summary">Summary</option>
+          <option value="clean">Clean &amp; fix types</option>
+          <option value="describe">Describe + correlations</option>
+          <option value="visualize">Visualize key columns</option>
+          <option value="forecast">Forecast target (if time-series)</option>
+        </select>
+        <button>Run</button>
+      </div>
+    </form>
+    <h3>Output</h3>
+    <pre id="log">Waiting…</pre>
+    <script>
+      const form = document.getElementById("f");
+      const log = document.getElementById("log");
+      form.onsubmit = async (event) => {
+        event.preventDefault();
+        log.textContent = "Running…";
+        const fd = new FormData(form);
+        try {
+          const res = await fetch("/analyze", { method: "POST", body: fd });
+          const ct = res.headers.get("content-type") || "";
+          if (
+            ct.includes(
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+          ) {
+            const blob = await res.blob();
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "result.xlsx";
+            a.click();
+            log.textContent =
+              res.headers.get("x-summary") || "Downloaded result.xlsx";
+          } else {
+            const data = await res.json();
+            log.textContent = JSON.stringify(data, null, 2);
+          }
+        } catch (err) {
+          log.textContent = `Error: ${err.message || err}`;
+        }
+      };
+    </script>
+  </body>
+</html>
