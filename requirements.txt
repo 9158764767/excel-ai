@@ -1,5 +1,11 @@
 fastapi==0.111.0
 uvicorn[standard]==0.30.0
 python-multipart==0.0.9
-openai>=1.30.0
+
+# The API no longer depends on OpenAI. We perform all analysis locally using pandas and matplotlib.
+pandas>=2.2.0
+matplotlib>=3.8.0
+openpyxl>=3.1.0
+
+# Jinja2 is needed for templating the frontend HTML.
 jinja2>=3.1.4
