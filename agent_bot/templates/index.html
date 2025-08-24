@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agentic Excel AI</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <h1>Agentic Excel AI</h1>
+    <p>Upload an Excel or CSV file, then chat with the bot to analyze your data. Try commands like <code>summary</code>, <code>clean</code>, <code>describe</code>, <code>visualize</code>, and <code>forecast target=&lt;column&gt;</code>.</p>
+    <div id="upload-section">
+      <input type="file" id="file-input" accept=".xlsx,.xls,.csv" />
+      <button id="upload-btn">Upload</button>
+      <span id="upload-status"></span>
+    </div>
+    <hr />
+    <div id="chat-section">
+      <div id="chat-log"></div>
+      <div id="chat-input-area">
+        <input type="text" id="chat-input" placeholder="Enter a command..." />
+        <button id="send-btn">Send</button>
+      </div>
+    </div>
+    <script>
+      const uploadBtn = document.getElementById('upload-btn');
+      const fileInput = document.getElementById('file-input');
+      const uploadStatus = document.getElementById('upload-status');
+      const chatLog = document.getElementById('chat-log');
+      const chatInput = document.getElementById('chat-input');
+      const sendBtn = document.getElementById('send-btn');
+
+      // Helper function to append messages to chat log
+      function appendMessage(sender, text) {
+        const messageElem = document.createElement('div');
+        messageElem.className = sender;
+        messageElem.textContent = text;
+        chatLog.appendChild(messageElem);
+        chatLog.scrollTop = chatLog.scrollHeight;
+      }
+
+      // Upload file handler
+      uploadBtn.addEventListener('click', async () => {
+        const file = fileInput.files[0];
+        if (!file) {
+          uploadStatus.textContent = 'Please select a file.';
+          return;
+        }
+        const formData = new FormData();
+        formData.append('file', file);
+        uploadStatus.textContent = 'Uploading...';
+        try {
+          const res = await fetch('/upload', {
+            method: 'POST',
+            body: formData,
+          });
+          const data = await res.json();
+          uploadStatus.textContent = data.message;
+        } catch (err) {
+          uploadStatus.textContent = 'Error uploading file.';
+        }
+      });
+
+      // Send chat message handler
+      async function sendMessage() {
+        const message = chatInput.value.trim();
+        if (!message) return;
+        appendMessage('user', message);
+        chatInput.value = '';
+        // Prepare form data for chat endpoint
+        const formData = new FormData();
+        formData.append('message', message);
+        try {
+          const res = await fetch('/chat', {
+            method: 'POST',
+            body: formData,
+          });
+          if (res.headers.get('content-type')?.includes('application/json')) {
+            const data = await res.json();
+            // Format JSON for display
+            appendMessage('bot', JSON.stringify(data, null, 2));
+          } else if (res.headers.get('content-disposition')) {
+            // It's a file response. Extract filename and prompt download
+            const blob = await res.blob();
+            const contentDisposition = res.headers.get('content-disposition');
+            const match = /filename="?([^";]+)"?/.exec(contentDisposition);
+            const filename = match ? match[1] : 'download.bin';
+            const url = URL.createObjectURL(blob);
+            appendMessage('bot', `File generated: ${filename}. Click to download.`);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.textContent = filename;
+            link.style.display = 'block';
+            link.style.marginBottom = '8px';
+            chatLog.appendChild(link);
+            chatLog.scrollTop = chatLog.scrollHeight;
+          } else {
+            appendMessage('bot', 'Received unexpected response.');
+          }
+        } catch (err) {
+          appendMessage('bot', 'Error contacting server.');
+        }
+      }
+
+      sendBtn.addEventListener('click', sendMessage);
+      chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+    </script>
+  </body>
+</html>
